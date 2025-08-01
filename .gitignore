@@ -1,0 +1,23 @@
+# Environment variables
+.env
+.env*.local
+
+# Log files
+*.log
+
+# Python bytecode and virtual environments
+__pycache__/
+*.pyc
+venv-llm/
+
+# Node.js dependencies
+node_modules/
+
+# Next.js build output
+.next/
+
+# LLM models
+llm-service/models/
+
+# macOS temporary files
+.DS_Store
