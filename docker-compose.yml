@@ -18,6 +18,17 @@ services:
       LLM_SERVICE_URL: http://llm-service:8000 # LLMサービスはDockerネットワーク内でllm-serviceという名前でアクセス
     networks:
       - app_network
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - /app/node_modules
+            - /app/dist
+        - action: rebuild
+          path: ./backend/package.json
+          target: /app/package.json
 
   
 
@@ -31,10 +42,22 @@ services:
       - ./llm-service:/app
     depends_on:
       - llama-server
+      - otel-collector # otel-collectorに依存
     environment:
       LLM_SERVER_URL: http://llama-server:8000 # LLMサーバーのURL
     networks:
       - app_network
+    develop:
+      watch:
+        - action: sync
+          path: ./llm-service
+          target: /app
+          ignore:
+            - /app/models # モデルファイルは監視しない
+            - /app/venv # 仮想環境は監視しない
+        - action: rebuild
+          path: ./llm-service/requirements.txt
+          target: /app/requirements.txt
 
   llama-server:
     build:
@@ -63,6 +86,26 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+    networks:
+      - app_network
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: phoenix
+    ports:
+      - "6006:6006" # UI and OTLP HTTP collector
     networks:
       - app_network
 
