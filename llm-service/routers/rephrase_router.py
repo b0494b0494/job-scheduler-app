@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..services.llm_service import call_llm
-from ..prompts.rephrase import REPHRASE_PROMPT
+from services.llm_service import call_llm
+from prompts.rephrase import REPHRASE_PROMPT
 
 router = APIRouter()
 
@@ -28,4 +28,3 @@ async def rephrase_text(request: AnalyzeRequest):
     except Exception as e:
         print(f"Error during LLM rephrasing: {e}")
         raise HTTPException(status_code=500, detail=f"LLMテキスト再構成中にエラーが発生しました: {e}")
-

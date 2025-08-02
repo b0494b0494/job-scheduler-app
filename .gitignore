@@ -17,7 +17,8 @@ node_modules/
 .next/
 
 # LLM models
-llm-service/models/
+llm-service/models/*.gguf
+
 
 # macOS temporary files
 .DS_Store

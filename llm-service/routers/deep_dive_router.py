@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..services.llm_service import call_llm
-from ..prompts.deep_dive_questions import DEEP_DIVE_QUESTIONS_PROMPT
+from services.llm_service import call_llm
+from prompts.deep_dive_questions import DEEP_DIVE_QUESTIONS_PROMPT
 
 router = APIRouter()
 

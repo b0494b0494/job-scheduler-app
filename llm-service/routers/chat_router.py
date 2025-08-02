@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..services.llm_service import call_llm
-from ..prompts.chat import CHAT_SYSTEM_PROMPT
+from services.llm_service import call_llm
+from prompts.chat import CHAT_SYSTEM_PROMPT
 
 router = APIRouter()
 

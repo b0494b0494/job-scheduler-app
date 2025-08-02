@@ -1,0 +1,15 @@
+FROM python:3.9
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+# llama-cpp-pythonのインストール
+# GPUサポートが必要な場合は、CUDAベースイメージを使用し、CMAKE_ARGSを設定してください
+RUN pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+COPY . .
+
+CMD python -m llama_cpp.server --model ${MODEL_PATH} --host 0.0.0.0 --port 8000 --n_gpu_layers ${N_GPU_LAYERS} --n_ctx ${N_CTX}

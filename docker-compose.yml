@@ -1,8 +1,6 @@
 version: '3.8'
 
 services:
-  
-
   backend:
     build:
       context: ./backend
@@ -17,7 +15,40 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/job_scheduler
       NODE_ENV: development
-      LLM_SERVICE_URL: http://host.docker.internal:8000 # LLMサービスのURL (ホストマシン上のサービス)
+      LLM_SERVICE_URL: http://llm-service:8000 # LLMサービスはDockerネットワーク内でllm-serviceという名前でアクセス
+    networks:
+      - app_network
+
+  
+
+  llm-service:
+    build:
+      context: ./llm-service
+    container_name: job_scheduler_llm_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./llm-service:/app
+    depends_on:
+      - llama-server
+    environment:
+      LLM_SERVER_URL: http://llama-server:8000 # LLMサーバーのURL
+    networks:
+      - app_network
+
+  llama-server:
+    build:
+      context: ./llm-service
+      dockerfile: Dockerfile.llama-server # 新しいDockerfileを使用
+    container_name: job_scheduler_llama_server
+    ports:
+      - "8001:8000" # LLMサーバーのポートを8001にマッピング
+    volumes:
+      - ./llm-service/models:/app/models # モデルディレクトリをマウント
+    environment:
+      MODEL_PATH: /app/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf # 使用するモデルのパス
+      N_GPU_LAYERS: -1 # GPUレイヤー数 (必要に応じて調整)
+      N_CTX: 2048 # コンテキスト長 (必要に応じて調整)
     networks:
       - app_network
 
@@ -35,11 +66,8 @@ services:
     networks:
       - app_network
 
-  
-
 networks:
   app_network:
-
 
 volumes:
   postgres_data:

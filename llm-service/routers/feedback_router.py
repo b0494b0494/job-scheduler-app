@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..services.llm_service import call_llm
-from ..prompts.classify_feedback import CLASSIFY_FEEDBACK_PROMPT
+from services.llm_service import call_llm
+from prompts.classify_feedback import CLASSIFY_FEEDBACK_PROMPT
 import json
 
 router = APIRouter()
