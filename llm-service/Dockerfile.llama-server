@@ -2,13 +2,12 @@ FROM python:3.9
 
 WORKDIR /app
 
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-# llama-cpp-pythonのインストール
+# llama-cpp-pythonのインストール (プリビルド済みホイールを使用)
 # GPUサポートが必要な場合は、CUDAベースイメージを使用し、CMAKE_ARGSを設定してください
 RUN pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+# llama-cpp-python[server]の依存関係を明示的にインストール
+RUN pip install fastapi uvicorn sse_starlette starlette_context pydantic_settings
 
 COPY . .
 
