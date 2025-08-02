@@ -29,7 +29,15 @@
 - **役割:** 大規模言語モデルをホスティングし、フィードバックの分類や対話応答の生成といった推論処理を実行します。`llama-cpp-python`の組み込みサーバー機能を利用します。
 - **技術スタック:** Python, `llama-cpp-python` (LLM推論ライブラリ), Uvicorn (ASGIサーバー)
 
-### 2.5. Database (データベース)
+### 2.5. OpenTelemetry Collector (OTel Collector)
+- **役割:** アプリケーションから送信されるトレース、メトリクス、ログなどのテレメトリデータを受信、処理、エクスポートします。様々なフォーマットに対応し、バックエンドシステムへの橋渡し役となります。
+- **技術スタック:** Go (OpenTelemetry Collector Contrib)
+
+### 2.6. Phoenix (可視化ツール)
+- **役割:** OpenTelemetry Collectorからエクスポートされたトレースデータを可視化し、LLMの動作やアプリケーション全体のパフォーマンスを分析するためのUIを提供します。
+- **技術スタック:** Python (Arize AI Phoenix)
+
+### 2.7. Database (データベース)
 - **役割:** スケジュール情報、フィードバックデータなどのアプリケーションデータを永続化します。
 - **技術スタック:** PostgreSQL
 
@@ -39,6 +47,8 @@
 - **Backend ↔ Database:** BackendがORM (Sequelize) を介してデータベースにアクセスします。
 - **Backend ↔ LLM Service:** BackendがHTTPリクエスト (`node-fetch`) を介してLLM ServiceのAPIエンドポイントを呼び出します。
 - **LLM Service ↔ Llama Server:** LLM ServiceがHTTPリクエスト (`httpx`) を介してLlama ServerのAPIエンドポイントを呼び出し、LLM推論を実行します。
+- **LLM Service ↔ OpenTelemetry Collector:** LLM ServiceはOpenTelemetry SDKで計装されており、トレースデータをOTLP (OpenTelemetry Protocol) 形式でOpenTelemetry Collectorに送信します。
+- **OpenTelemetry Collector ↔ Phoenix:** OpenTelemetry Collectorは受信したトレースデータを処理し、Phoenixが理解できる形式でPhoenixのOTLPエンドポイントにエクスポートします。
 
 ## 4. LLM機能の詳細
 
@@ -47,7 +57,7 @@ LLM Serviceは、以下の2つの主要な機能を提供します。
 ### 4.1. フィードバック自動分類
 - **目的:** ユーザーが入力したフィードバックテキストを、事前に定義されたカテゴリ（感想、魅力点、懸念点、志望度、次のステップ、その他）に自動で分類し、構造化されたJSON形式で返します。
 - **APIエンドポイント:** `POST /classify-feedback`
-- **LLMモデル:** `mistral-7b-instruct-v0.2.Q5_K_M.gguf` (GGUF形式)
+- **LLMモデル:** `mistral-7b-instruct-v0.2.Q2_K.gguf` (GGUF形式)
 - **内部処理:** `services/llm_service.py` の `call_llm` 関数を通じてLLMサーバーを呼び出し、`prompts/classify_feedback.py` からロードされたプロンプトを使用します。
 
 ### 4.2. 壁打ち機能 (チャット)
@@ -70,5 +80,5 @@ LLM Serviceは、以下の2つの主要な機能を提供します。
 
 ## 5. 開発環境の概要
 
-- **Docker Compose:** Backend, Llama Server, LLM Service, Databaseのコンテナ化と連携を管理します。
+- **Docker Compose:** Backend, Llama Server, LLM Service, OpenTelemetry Collector, Phoenix, Databaseのコンテナ化と連携を管理します。
 - **ローカル開発:** Frontendはローカル環境で直接実行されます。
