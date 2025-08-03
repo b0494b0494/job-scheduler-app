@@ -4,31 +4,19 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     container_name: job_scheduler_backend
     ports:
-      - "5000:5000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - "3001:3001" # tRPCサーバーのポート
+    # volumes:
+    #   - ./backend:/app # ホストのソースコードをマウントしない
     depends_on:
       - db
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/job_scheduler
-      NODE_ENV: development
-      LLM_SERVICE_URL: http://llm-service:8000 # LLMサービスはDockerネットワーク内でllm-serviceという名前でアクセス
     networks:
       - app_network
-    develop:
-      watch:
-        - action: sync
-          path: ./backend
-          target: /app
-          ignore:
-            - /app/node_modules
-            - /app/dist
-        - action: rebuild
-          path: ./backend/package.json
-          target: /app/package.json
+    command: npm run serve # ビルドされたJavaScriptを実行
 
   
 
@@ -81,9 +69,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: job_scheduler
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

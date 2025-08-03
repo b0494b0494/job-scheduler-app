@@ -5,6 +5,7 @@ import {
     CircularProgress, Alert, Paper
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
+import { trpc } from '../../utils/trpc'; // Import trpc
 
 interface Schedule {
     id: number;
@@ -13,46 +14,25 @@ interface Schedule {
     description?: string;
 }
 
-// 更新されたFeedbackの型定義
 interface Feedback {
     id: number;
-    impression: string;
-    attraction: string;
-    concern: string;
-    aspiration: '高め' | '普通' | '低め';
-    next_step: '次に進めたい' | '保留' | '辞退';
-    other: string;
+    impression?: string;
+    attraction?: string;
+    concern?: string;
+    aspiration?: string;
+    next_step?: string;
+    other?: string;
     createdAt: string;
     scheduleId: number;
-    schedule?: Schedule; // 関連するスケジュール情報
+    schedule?: Schedule; // Related schedule info
 }
 
 export default function FeedbackPage() {
-    const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    useEffect(() => {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        setLoading(true);
-        fetch(`${API_URL}/feedbacks`)
-            .then(res => {
-                if (!res.ok) throw new Error('データの取得に失敗しました。');
-                return res.json();
-            })
-            .then(data => {
-                setFeedbacks(data);
-                setError(null);
-            })
-            .catch(err => {
-                setError(err.message);
-                setFeedbacks([]);
-            })
-            .finally(() => setLoading(false));
-    }, []);
+    const { data: feedbacks, isLoading, isError, error } = trpc.getFeedbacks.useQuery();
 
-    const getAspirationChipColor = (aspiration: Feedback['aspiration']) => {
+    const getAspirationChipColor = (aspiration?: string) => {
         switch (aspiration) {
             case '高め': return 'success';
             case '普通': return 'warning';
@@ -61,7 +41,7 @@ export default function FeedbackPage() {
         }
     };
 
-    const getNextStepChipColor = (nextStep: Feedback['next_step']) => {
+    const getNextStepChipColor = (nextStep?: string) => {
         switch (nextStep) {
             case '次に進めたい': return 'primary';
             case '保留': return 'info';
@@ -71,15 +51,15 @@ export default function FeedbackPage() {
     };
 
     const renderContent = () => {
-        if (loading) {
+        if (isLoading) {
             return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
         }
 
-        if (error) {
-            return <Alert severity="error" sx={{ mt: 4 }}>{error}</Alert>;
+        if (isError) {
+            return <Alert severity="error" sx={{ mt: 4 }}>{error?.message}</Alert>;
         }
 
-        if (feedbacks.length === 0) {
+        if (!feedbacks || feedbacks.length === 0) {
             return (
                 <Paper sx={{ textAlign: 'center', p: 8, mt: 4 }}>
                     <Typography variant="h6" gutterBottom>

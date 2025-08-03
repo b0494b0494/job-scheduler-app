@@ -2,52 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Container, Typography, Box, Chip, Paper, Grid, CircularProgress, Alert } from '@mui/material';
 import { Comment, ThumbUp, Warning, CheckCircle, Block, HelpOutline, Info } from '@mui/icons-material';
+import { trpc } from '../../../utils/trpc'; // Import trpc
 
-// 更新されたFeedbackの型定義
 interface Feedback {
     id: number;
-    impression: string;
-    attraction: string;
-    concern: string;
-    aspiration: '高め' | '普通' | '低め';
-    next_step: '次に進めたい' | '保留' | '辞退';
-    other: string;
+    impression?: string;
+    attraction?: string;
+    concern?: string;
+    aspiration?: string;
+    next_step?: string;
+    other?: string;
     createdAt: string;
 }
 
 const FeedbackDetailPage: React.FC = () => {
     const router = useRouter();
     const { id } = router.query;
-    const [feedback, setFeedback] = useState<Feedback | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (id) {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-            setLoading(true);
-            fetch(`${API_URL}/feedbacks/${id}`)
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error('フィードバックの読み込みに失敗しました。');
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    setFeedback(data);
-                    setError(null);
-                })
-                .catch(err => {
-                    setError(err.message);
-                    setFeedback(null);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
-        }
-    }, [id]);
+    const feedbackId = typeof id === 'string' ? parseInt(id) : undefined;
 
-    const getAspirationChipColor = (aspiration?: Feedback['aspiration']) => {
+    const { data: feedback, isLoading, isError, error } = trpc.getFeedbackById.useQuery(feedbackId!, { enabled: !!feedbackId });
+
+    const getAspirationChipColor = (aspiration?: string) => {
         switch (aspiration) {
             case '高め': return 'success';
             case '普通': return 'warning';
@@ -56,7 +32,7 @@ const FeedbackDetailPage: React.FC = () => {
         }
     };
 
-    const getNextStepChipColor = (nextStep?: Feedback['next_step']) => {
+    const getNextStepChipColor = (nextStep?: string) => {
         switch (nextStep) {
             case '次に進めたい': return 'primary';
             case '保留': return 'info';
@@ -65,12 +41,12 @@ const FeedbackDetailPage: React.FC = () => {
         }
     };
 
-    if (loading) {
+    if (isLoading) {
         return <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Container>;
     }
 
-    if (error) {
-        return <Container sx={{ mt: 4 }}><Alert severity="error">{error}</Alert></Container>;
+    if (isError) {
+        return <Container sx={{ mt: 4 }}><Alert severity="error">{error?.message}</Alert></Container>;
     }
 
     if (!feedback) {

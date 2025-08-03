@@ -9,23 +9,23 @@ import ja from 'date-fns/locale/ja';
 import SendIcon from '@mui/icons-material/Send';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import { trpc } from '../utils/trpc'; // Import trpc
 
 interface FeedbackFormInputs {
-    impression: string;
-    attraction: string;
-    concern: string;
-    aspiration: '高め' | '普通' | '低め' | '';
-    next_step: '次に進めたい' | '保留' | '辞退' | '';
-    other: string;
+    impression?: string;
+    attraction?: string;
+    concern?: string;
+    aspiration?: '高め' | '普通' | '低め' | '';
+    next_step?: '次に進めたい' | '保留' | '辞退' | '';
+    other?: string;
     scheduleId: number;
 }
 
 interface Schedule {
     id: number;
     title: string;
-    description: string;
     date: string;
-    time: string;
+    description?: string;
 }
 
 interface FeedbackFormProps {
@@ -40,8 +40,6 @@ interface ChatMessage {
     text: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
 const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialDate, onClose, onSaveSuccess }) => {
     const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FeedbackFormInputs>();
     const [schedule, setSchedule] = useState<Schedule | null>(null);
@@ -55,98 +53,68 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
     const [newScheduleTitle, setNewScheduleTitle] = useState('');
     const [newScheduleDescription, setNewScheduleDescription] = useState('');
 
-    // チャット関連のstate
+    // tRPC queries and mutations
+    const { data: fetchedSchedule, isLoading: isScheduleLoading, isError: isScheduleError, error: scheduleError } = trpc.getScheduleById.useQuery(initialScheduleId!, { enabled: !!initialScheduleId });
+    const { data: fetchedSchedulesForDate, isLoading: isSchedulesForDateLoading, isError: isSchedulesForDateError, error: schedulesForDateError } = trpc.getSchedulesByDate.useQuery(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', { enabled: !!selectedDate });
+    const createScheduleMutation = trpc.createSchedule.useMutation();
+    const createFeedbackMutation = trpc.createFeedback.useMutation();
+    const classifyFeedbackMutation = trpc.classifyFeedback.useMutation();
+    const chatMutation = trpc.chat.useMutation();
+    const analyzeChatMutation = trpc.analyzeChat.useMutation();
+
+    const watchImpression = watch("impression");
+    const selectedScheduleId = watch("scheduleId");
+
     const [messages, setMessages] = useState<ChatMessage[]>([{ sender: 'llm', text: 'カジュアル面談のフィードバックについて、壁打ちしましょう！何から話しますか？' }]);
     const [chatInput, setChatInput] = useState<string>('');
-    const chatContainerRef = useRef<HTMLDivElement>(null); // チャットスクロール用
-    const [chatMode, setChatMode] = useState<'chat' | 'analyze'>('chat'); // chatモードとanalyzeモード
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const [chatMode, setChatMode] = useState<'chat' | 'analyze'>('chat');
 
     const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: 'chat' | 'analyze') => {
         if (newMode !== null) {
             setChatMode(newMode);
-            setMessages([]); // モード切り替え時にメッセージをクリア
-            setChatInput(''); // 入力もクリア
-            setLlmError(null); // エラーもクリア
+            setMessages([]);
+            setChatInput('');
+            setLlmError(null);
             if (newMode === 'chat') {
                 setMessages([{ sender: 'llm', text: 'カジュアル面談のフィードバックについて、壁打ちしましょう！何から話しますか？' }]);
             }
         }
     };
 
-    const watchImpression = watch("impression");
-    const selectedScheduleId = watch("scheduleId");
-
-    // チャットメッセージが追加されたらスクロール
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // スケジュール取得ロジック
     useEffect(() => {
-        const fetchSchedules = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                let fetchedSchedule: Schedule | null = null;
-                let fetchedSchedulesForDate: Schedule[] = [];
-
-                if (initialScheduleId) {
-                    const response = await fetch(`${API_URL}/schedules/${initialScheduleId}`);
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch schedule by ID');
-                    }
-                    fetchedSchedule = await response.json();
-                    setSchedule(fetchedSchedule);
-                    setValue('scheduleId', parseInt(initialScheduleId as any));
-                } else if (selectedDate) {
-                    const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                    const response = await fetch(`${API_URL}/schedules?date=${formattedDate}`);
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch schedules by date');
-                    }
-                    fetchedSchedulesForDate = await response.json();
-                    setSchedulesForDate(fetchedSchedulesForDate);
-
-                    if (fetchedSchedulesForDate.length === 1) {
-                        fetchedSchedule = fetchedSchedulesForDate[0];
-                        setSchedule(fetchedSchedule);
-                        setValue('scheduleId', fetchedSchedule.id);
-                    } else if (fetchedSchedulesForDate.length === 0) {
-                        setSchedule(null);
-                        setValue('scheduleId', 0);
-                    }
-                }
-            } catch (err) {
-                setError((err as Error).message);
-            } finally {
-                setLoading(false);
+        if (fetchedSchedule) {
+            setSchedule(fetchedSchedule);
+            setValue('scheduleId', fetchedSchedule.id);
+        } else if (fetchedSchedulesForDate && fetchedSchedulesForDate.length > 0) {
+            setSchedulesForDate(fetchedSchedulesForDate);
+            if (fetchedSchedulesForDate.length === 1) {
+                setSchedule(fetchedSchedulesForDate[0]);
+                setValue('scheduleId', fetchedSchedulesForDate[0].id);
+            } else {
+                setSchedule(null);
+                setValue('scheduleId', 0);
             }
-        };
-        fetchSchedules();
-    }, [initialScheduleId, selectedDate, setValue]);
+        } else {
+            setSchedule(null);
+            setValue('scheduleId', 0);
+        }
+    }, [fetchedSchedule, fetchedSchedulesForDate, setValue]);
 
     const onSubmit = async (data: FeedbackFormInputs) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_URL}/feedbacks`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create feedback');
-            }
-
+            await createFeedbackMutation.mutateAsync(data);
             onSaveSuccess && onSaveSuccess();
-        } catch (err) {
-            setError((err as Error).message);
+        } catch (err: any) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -159,13 +127,12 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
             let textToClassify: string = '';
 
             if (chatMode === 'chat') {
-                // チャット履歴からLLMに渡すテキストを生成
                 textToClassify = messages
-                    .filter(msg => msg.sender === 'user') // ユーザーの入力のみを抽出
+                    .filter(msg => msg.sender === 'user')
                     .map(msg => msg.text)
                     .join('\n');
-            } else { // chatMode === 'analyze'
-                textToClassify = chatInput; // 分析モードではchatInputの内容を分類
+            } else {
+                textToClassify = chatInput;
             }
 
             if (!textToClassify.trim()) {
@@ -173,20 +140,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                 return;
             }
 
-            const response = await fetch(`${API_URL}/feedbacks/classify`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ text: textToClassify }), // 生成したテキストを渡す
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'LLM分類に失敗しました');
-            }
-
-            const classifiedData = await response.json();
+            const classifiedData = await classifyFeedbackMutation.mutateAsync({ text: textToClassify });
             setValue('impression', classifiedData.impression || '');
             setValue('attraction', classifiedData.attraction || '');
             setValue('concern', classifiedData.concern || '');
@@ -194,8 +148,8 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
             setValue('next_step', classifiedData.next_step || '');
             setValue('other', classifiedData.other || '');
 
-        } catch (err) {
-            setLlmError((err as Error).message);
+        } catch (err: any) {
+            setLlmError(err.message);
         } finally {
             setLlmLoading(false);
         }
@@ -209,32 +163,18 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_URL}/schedules`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: newScheduleTitle,
-                    description: newScheduleDescription,
-                    date: format(selectedDate, 'yyyy-MM-dd'),
-                    time: '00:00'
-                }),
+            const newSchedule = await createScheduleMutation.mutateAsync({
+                title: newScheduleTitle,
+                description: newScheduleDescription,
+                date: format(selectedDate, 'yyyy-MM-dd'),
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create new schedule');
-            }
-
-            const newSchedule = await response.json();
             setSchedule(newSchedule);
             setValue('scheduleId', newSchedule.id);
             setNewScheduleModalOpen(false);
             setNewScheduleTitle('');
             setNewScheduleDescription('');
-        } catch (err) {
-            setError((err as Error).message);
+        } catch (err: any) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -250,35 +190,16 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
         setLlmError(null);
 
         try {
-            let requestBody: any;
-            let endpoint: string;
-
+            let llmResponse;
             if (chatMode === 'chat') {
-                endpoint = `${API_URL}/feedbacks/chat`;
-                requestBody = { messages: [...messages, userMessage] };
-            } else { // chatMode === 'analyze'
-                endpoint = `${API_URL}/feedbacks/chat/analyze`;
-                requestBody = { text: chatInput };
+                llmResponse = await chatMutation.mutateAsync({ messages: [...messages, userMessage] });
+            } else {
+                llmResponse = await analyzeChatMutation.mutateAsync({ text: chatInput });
             }
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'LLM応答の取得に失敗しました');
-            }
-
-            const llmResponse = await response.json();
             const llmMessage: ChatMessage = { sender: 'llm', text: llmResponse.reply };
             setMessages((prev) => [...prev, llmMessage]);
-        } catch (err) {
-            setLlmError((err as Error).message);
+        } catch (err: any) {
+            setLlmError(err.message);
         } finally {
             setLlmLoading(false);
         }
@@ -291,7 +212,6 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                     フィードバック壁打ち
                 </Typography>
 
-                {/* モード切り替えボタン */}
                 <ToggleButtonGroup
                     value={chatMode}
                     exclusive
@@ -307,7 +227,6 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                     </ToggleButton>
                 </ToggleButtonGroup>
 
-                {/* チャットUI */}
                 <Paper elevation={3} sx={{ height: '400px', display: 'flex', flexDirection: 'column', mt: 2 }}>
                     <Box ref={chatContainerRef} sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
                         {messages.map((msg, index) => (
@@ -339,8 +258,8 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                                     handleSendMessage();
                                 }
                             }}
-                            multiline={chatMode === 'analyze'} // 分析モードでは複数行入力可能に
-                            rows={chatMode === 'analyze' ? 4 : 1} // 分析モードでは4行表示
+                            multiline={chatMode === 'analyze'} 
+                            rows={chatMode === 'analyze' ? 4 : 1} 
                             sx={{ mr: 1 }}
                             disabled={llmLoading}
                         />
@@ -360,7 +279,6 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                     チャット内容を自動分類
                 </Button>
 
-                {/* 既存のフィードバックフォームフィールド */}
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <TextField
                         label="感想 (チャット内容から自動入力されます)"
@@ -442,7 +360,6 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ initialScheduleId, initialD
                     </Box>
                 </form>
 
-                {/* 新しいスケジュール作成モーダル */}
                 <Dialog open={newScheduleModalOpen} onClose={() => setNewScheduleModalOpen(false)}>
                     <DialogTitle>新しいスケジュールを作成</DialogTitle>
                     <DialogContent>

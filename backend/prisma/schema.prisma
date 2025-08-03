@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  title       String
+  date        DateTime
+  description String?  @db.Text
+  feedback    Feedback? // One-to-one relation with Feedback
+}
+
+model Feedback {
+  id          Int      @id @default(autoincrement())
+  impression  String?  @db.Text
+  attraction  String?  @db.Text
+  concern     String?  @db.Text
+  aspiration  String?
+  next_step   String?
+  other       String?  @db.Text
+  scheduleId  Int      @unique
+  createdAt   DateTime @default(now()) @map("createdAt")
+  schedule    Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@map("feedbacks")
+}

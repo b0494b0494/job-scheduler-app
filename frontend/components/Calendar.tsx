@@ -7,14 +7,15 @@ import { ja } from 'date-fns/locale';
 import { useRouter } from 'next/router';
 import { Feedback as FeedbackIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
+import { trpc } from '../utils/trpc'; // Import trpc
 
 interface Feedback {
     id: number;
     impression: string;
     attraction: string;
     concern: string;
-    aspiration: '高め' | '普通' | '低め';
-    next_step: '次に進めたい' | '保留' | '辞退';
+    aspiration: string;
+    next_step: string;
     other: string;
     createdAt: string;
     scheduleId: number;
@@ -30,60 +31,27 @@ interface Schedule {
 
 interface CalendarProps {
     onDateSelect: (date: Date | null) => void;
-    onFeedbackButtonClick: (schedule: Schedule) => void; // 新しいpropsを追加
+    onFeedbackButtonClick: (schedule: Schedule) => void;
 }
 
 export default function Calendar({ onDateSelect, onFeedbackButtonClick }: CalendarProps) {
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-    const [schedules, setSchedules] = useState<Schedule[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    // Use tRPC query for fetching schedules
+    const { data: schedules, isLoading, isError, error } = trpc.getSchedules.useQuery();
 
-    const fetchSchedules = async () => {
-        setLoading(true);
-        try {
-            console.log('DEBUG: API_URL being used:', API_URL);
-            console.log('Fetching schedules from:', `${API_URL}/schedules`);
-            const response = await fetch(`${API_URL}/schedules`);
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('API Error Response:', errorText);
-                throw new Error(`スケジュールの取得に失敗しました。Status: ${response.status}, Message: ${errorText}`);
-            }
-            const data = await response.json();
-            console.log('Fetched schedules data:', data);
-            setSchedules(data);
-            setError(null);
-        } catch (err: any) {
-            console.error('Error in fetchSchedules:', err);
-            setError(err.message);
-            setSchedules([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchSchedules();
-    }, []);
-
-    const schedulesForSelectedDate = selectedDate
+    const schedulesForSelectedDate = selectedDate && schedules
         ? schedules.filter(schedule => isSameDay(new Date(schedule.date), selectedDate))
         : [];
 
     const handleFeedbackClick = (schedule: Schedule) => {
-        // FeedbackFormをドロワーで開くために、onFeedbackButtonClickを呼び出す
         onFeedbackButtonClick(schedule);
     };
 
-    // CustomDayコンポーネントを定義
     const CustomDay = (props: PickersDayProps<Date>) => {
         const { day, outsideCurrentMonth, ...other } = props;
-        const hasSchedule = schedules.some(schedule => isSameDay(new Date(schedule.date), day));
+        const hasSchedule = schedules?.some(schedule => isSameDay(new Date(schedule.date), day));
 
         return (
             <PickersDay
@@ -125,14 +93,14 @@ export default function Calendar({ onDateSelect, onFeedbackButtonClick }: Calend
                     <Typography variant="h5" gutterBottom>
                         {selectedDate ? format(selectedDate, 'yyyy年MM月dd日 (E)', { locale: ja }) : '日付を選択してください'} のスケジュール
                     </Typography>
-                    {loading && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>}
-                    {error && !loading && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
-                    {!loading && schedulesForSelectedDate.length === 0 && !error && (
+                    {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>}
+                    {isError && !isLoading && <Alert severity="error" sx={{ mt: 2 }}>{error?.message}</Alert>}
+                    {!isLoading && schedulesForSelectedDate.length === 0 && !isError && (
                         <Alert severity="info" sx={{ mt: 2 }}>
                             この日付にはスケジュールがありません。
                         </Alert>
                     )}
-                    {!loading && schedulesForSelectedDate.length > 0 && (
+                    {!isLoading && schedulesForSelectedDate.length > 0 && (
                         <List>
                             {schedulesForSelectedDate.map((schedule) => (
                                 <ListItem

@@ -3,22 +3,23 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Calendar from '../components/Calendar';
-import FeedbackForm from '../components/FeedbackForm'; // FeedbackFormをインポート
+import FeedbackForm from '../components/FeedbackForm';
 import { format } from 'date-fns';
 import { useForm, Controller } from 'react-hook-form';
+import { trpc } from '../utils/trpc'; // Import trpc
 
 interface ScheduleFormInputs {
     title: string;
     date: string;
-    description: string;
+    description?: string; // description can be optional
 }
 
 interface Schedule {
     id: number;
     title: string;
-    description: string;
+    description?: string;
     date: string;
-    time: string;
+    time?: string; // time might not be directly from DB
 }
 
 export default function SchedulePage() {
@@ -39,12 +40,24 @@ export default function SchedulePage() {
     const [generalError, setGeneralError] = useState<string | null>(null);
     const router = useRouter();
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    // Use tRPC mutation for creating schedules
+    const createScheduleMutation = trpc.createSchedule.useMutation({
+        onSuccess: () => {
+            setValue('title', '');
+            setValue('description', '');
+            setValue('date', format(new Date(), 'yyyy-MM-dd'));
+            // Invalidate queries to refetch schedules in Calendar component
+            // This assumes Calendar component uses trpc.getSchedules.useQuery
+            trpc.getSchedules.invalidate();
+        },
+        onError: (error) => {
+            setGeneralError(error.message);
+        },
+    });
 
-    const [openDrawer, setOpenDrawer] = useState(false); // ドロワーの開閉状態
-    const [selectedScheduleForFeedback, setSelectedScheduleForFeedback] = useState<Schedule | null>(null); // フィードバック対象のスケジュール
+    const [openDrawer, setOpenDrawer] = useState(false);
+    const [selectedScheduleForFeedback, setSelectedScheduleForFeedback] = useState<Schedule | null>(null);
 
-    // Calendarコンポーネントから日付が選択されたときに呼び出されるハンドラ
     const handleDateSelect = (selectedDate: Date | null) => {
         if (selectedDate) {
             setValue('date', format(selectedDate, 'yyyy-MM-dd'), { shouldValidate: true });
@@ -53,44 +66,31 @@ export default function SchedulePage() {
 
     const onSubmit = async (data: ScheduleFormInputs) => {
         setGeneralError(null);
-
         try {
-            const response = await fetch(`${API_URL}/schedules`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+            await createScheduleMutation.mutateAsync({
+                title: data.title,
+                date: data.date,
+                description: data.description || '', // Ensure description is string
             });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'スケジュールの追加に失敗しました。');
-            }
-            setValue('title', '');
-            setValue('description', '');
-            setValue('date', format(new Date(), 'yyyy-MM-dd'));
-            // スケジュール追加後、カレンダーコンポーネントが自動で再フェッチするようにする
-            // 現状は、カレンダーコンポーネントが自身のuseEffectでスケジュールをフェッチするため、
-            // ここで特別な処理は不要です。
         } catch (err: any) {
-            setGeneralError(err.message);
+            // Error is already handled by onError in useMutation
         }
     };
 
-    // フィードバックボタンクリックハンドラ
     const handleOpenFeedbackForm = (schedule: Schedule) => {
         setSelectedScheduleForFeedback(schedule);
         setOpenDrawer(true);
     };
 
-    // ドロワーを閉じるハンドラ
     const handleCloseDrawer = () => {
         setOpenDrawer(false);
         setSelectedScheduleForFeedback(null);
     };
 
-    // FeedbackFormの保存成功時のハンドラ
     const handleFeedbackSaveSuccess = () => {
         handleCloseDrawer();
-        // 必要であれば、スケジュール一覧を再フェッチするロジックを追加
+        // Invalidate feedback queries if needed
+        trpc.getFeedbacks.invalidate();
     };
 
     return (
@@ -100,7 +100,7 @@ export default function SchedulePage() {
             </Typography>
 
             {/* カレンダーコンポーネントを配置 */}
-            <Calendar onDateSelect={handleDateSelect} onFeedbackButtonClick={handleOpenFeedbackForm} /> {/* onFeedbackButtonClickを追加 */}
+            <Calendar onDateSelect={handleDateSelect} onFeedbackButtonClick={handleOpenFeedbackForm} />
 
             <Box sx={{ mb: 4, p: 3, border: '1px solid #333', borderRadius: 2, bgcolor: 'background.paper', mt: 4 }}>
                 <Typography variant="h6" gutterBottom>新しいスケジュールを追加</Typography>
@@ -135,9 +135,9 @@ export default function SchedulePage() {
                         type="submit"
                         variant="contained"
                         color="primary"
-                        disabled={isSubmitting}
+                        disabled={createScheduleMutation.isLoading} // Use mutation's isLoading
                     >
-                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'スケジュール追加'}
+                        {createScheduleMutation.isLoading ? <CircularProgress size={24} color="inherit" /> : 'スケジュール追加'}
                     </Button>
                     {generalError && <Alert severity="error" sx={{ mt: 2 }}>{generalError}</Alert>}
                 </form>
