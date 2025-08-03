@@ -1,7 +1,8 @@
 import os
-from fastapi import HTTPException
 import httpx
+from fastapi import HTTPException
 from opentelemetry import trace # OpenTelemetryのインポート
+import traceback # tracebackモジュールをインポート
 
 LLM_SERVER_URL = os.getenv("LLM_SERVER_URL", "http://llama-server:8000") # LLMサーバーのURL
 
@@ -40,15 +41,21 @@ async def call_llm(prompt: str, max_tokens: int, stop: list, temperature: float)
                 span.set_attribute("output.value", completion_text)
 
                 return completion_text
-        except httpx.RequestError as e:
-            span.set_attribute("error", True) # エラー発生時にエラー属性を設定
-            span.set_attribute("error.message", str(e))
-            raise HTTPException(status_code=500, detail=f"LLMサーバーへのリクエスト中にエラーが発生しました: {e}")
         except httpx.HTTPStatusError as e:
+            print(f"Status code: {e.response.status_code}")
+            print(f"Response content: {e.response.text}")
             span.set_attribute("error", True)
             span.set_attribute("error.message", e.response.text)
             raise HTTPException(status_code=e.response.status_code, detail=f"LLMサーバーからエラー応答: {e.response.text}")
+        except httpx.RequestError as e:
+            print(f"General httpx.RequestError: {e}")
+            traceback.print_exc()
+            span.set_attribute("error", True)
+            span.set_attribute("error.message", str(e))
+            raise HTTPException(status_code=500, detail=f"LLMサーバーへのリクエスト中にエラーが発生しました: {e}")
         except Exception as e:
+            print(f"General exception: {e}")
+            traceback.print_exc()
             span.set_attribute("error", True)
             span.set_attribute("error.message", str(e))
             raise HTTPException(status_code=500, detail=f"LLM呼び出し中に予期せぬエラーが発生しました: {e}")
