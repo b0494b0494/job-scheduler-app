@@ -1,42 +1,42 @@
-# プロジェクト起動手順
+# Project Startup Guide
 
-このドキュメントでは、Job Schedulerアプリケーションの各サービスを起動するための手順を説明します。
+This document outlines the steps to start each service of the Job Scheduler application.
 
-## Docker Compose を使用したサービス起動 (backend, llm-service, llama-server, db)
+## Starting Services with Docker Compose (backend, llm-service, llama-server, db)
 
-`frontend`以外のサービスはDocker Composeを使用して起動します。
+All services except the `frontend` are started using Docker Compose.
 
-1.  **プロジェクトルートディレクトリへ移動**
+1.  **Navigate to the project root directory**
     ```bash
     cd C:\Users\b0949\Desktop\develop\job-scheduler-app
     ```
 
-2.  **Docker Composeでサービスを起動**
+2.  **Start services with Docker Compose**
     ```bash
     docker-compose up --build -d
     ```
-    *   `up`: サービスを起動します。
-    *   `--build`: Dockerfileに変更があった場合や、初めて起動する場合にイメージを再ビルドします。
-    *   `-d`: バックグラウンドでサービスを起動します。
+    *   `up`: Starts the services.
+    *   `--build`: Rebuilds images if there are changes to the Dockerfile or for the first startup.
+    *   `-d`: Starts services in the background.
 
-    これにより、`backend`、`llm-service`、`llama-server`、`db`サービスが起動します。
+    This will start the `backend`, `llm-service`, `llama-server`, and `db` services.
 
-## Frontend のローカル起動
+## Local Frontend Startup
 
-FrontendはDocker Composeではなく、ローカル環境で直接起動します。
+The Frontend is started directly in the local environment, not with Docker Compose.
 
-1.  **frontendディレクトリへ移動**
+1.  **Navigate to the frontend directory**
     ```bash
     cd frontend
     ```
 
-2.  **必要なパッケージのインストール**
+2.  **Install necessary packages**
     ```bash
     npm install
     ```
 
-3.  **Frontendの起動**
+3.  **Start the Frontend**
     ```bash
     npm run dev
     ```
-    このコマンドを実行すると、Frontend開発サーバーがポート3000で起動します。
+    This command will start the Frontend development server on port 3000.
