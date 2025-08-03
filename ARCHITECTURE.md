@@ -69,8 +69,8 @@ An interactive assistant feature to help users deepen their thoughts.
 - **Purpose:** The LLM analyzes long feedback text entered by the user and generates an initial question based on its content.
 - **API Endpoint:** `POST /chat/analyze`
 - **Internal Process:** This endpoint achieves complex analysis and question generation by **sequentially calling multiple LLM Service endpoints step-by-step** from the backend:
-    1.  **Rephrasing Agent (`POST /chat/rephrase`):** Restructures the user's long text into more logical and readable Japanese sentences without losing the original intent.
-        - **Internal Process:** Calls the LLM server via the `call_llm` function in `services/llm_service.py` and uses prompts loaded from `prompts/rephrase.py`.
+    1.  **Rephrasing Agent (`POST /chat/rephrase`):** Restructures the user's long text into more logical and readable Japanese sentences without losing the original intent. This process now utilizes a multi-node LangGraph workflow for enhanced refinement.
+        - **Internal Process:** Employs a LangGraph workflow defined in `routers/rephrase_router.py`. This workflow consists of multiple nodes (e.g., `initial_rephrase`, `refine_rephrase`) that sequentially call the LLM server via the `call_llm` function in `services/llm_service.py`, using prompts loaded from `prompts/rephrase.py` and `prompts/refine_rephrase.py` for a refined output.
     2.  **Deep Dive Question Agent (`POST /chat/deep_dive_questions`):** Generates deep-dive questions based on the rephrased text to prompt the user's thinking.
         - **Internal Process:** Calls the LLM server via the `call_llm` function in `services/llm_service.py` and uses prompts loaded from `prompts/deep_dive_questions.py`.
     3.  The backend combines the responses from these two agents to form the final response and sends it to the frontend.
