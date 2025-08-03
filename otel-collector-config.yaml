@@ -10,8 +10,8 @@ receivers:
 exporters:
   logging:
     loglevel: debug
-  otlp:
-    endpoint: phoenix:4317
+  otlphttp/phoenix:
+    endpoint: "http://phoenix:6006"
     tls:
       insecure: true
 
@@ -19,10 +19,10 @@ service:
   pipelines:
     traces:
       receivers: [otlp, jaeger]
-      exporters: [logging, otlp]
+      exporters: [logging, otlphttp/phoenix]
     metrics:
       receivers: [otlp]
-      exporters: [logging]
+      exporters: [logging, otlphttp/phoenix]
     logs:
       receivers: [otlp]
-      exporters: [logging]
+      exporters: [logging, otlphttp/phoenix]

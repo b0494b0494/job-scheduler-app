@@ -15,7 +15,7 @@ async def load_llm_model():
 async def call_llm(prompt: str, max_tokens: int, stop: list, temperature: float):
     tracer = trace.get_tracer(__name__) # トレーサーを取得
     with tracer.start_as_current_span("call_llm_server") as span: # 新しいスパンを開始
-        span.set_attribute("llm.prompt", prompt) # プロンプトを属性として記録
+        span.set_attribute("input.value", prompt)
         span.set_attribute("llm.max_tokens", max_tokens)
         span.set_attribute("llm.temperature", temperature)
 
@@ -36,9 +36,10 @@ async def call_llm(prompt: str, max_tokens: int, stop: list, temperature: float)
                 output = response.json()
                 
                 # LLMからの応答を属性として記録
-                span.set_attribute("llm.response", output["choices"][0]["text"].strip())
+                completion_text = output["choices"][0]["text"].strip()
+                span.set_attribute("output.value", completion_text)
 
-                return output["choices"][0]["text"].strip()
+                return completion_text
         except httpx.RequestError as e:
             span.set_attribute("error", True) # エラー発生時にエラー属性を設定
             span.set_attribute("error.message", str(e))

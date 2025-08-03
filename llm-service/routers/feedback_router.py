@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from services.llm_service import call_llm
 from prompts.classify_feedback import CLASSIFY_FEEDBACK_PROMPT
 import json
+from opentelemetry import trace
 
 router = APIRouter()
 
@@ -20,6 +21,10 @@ class FeedbackClassificationResponse(BaseModel):
 @router.post("/classify-feedback")
 async def classify_feedback(request: TextClassificationRequest):
     user_text = request.text
+
+    # 現在のスパンを取得し、エンドポイントの入力を記録
+    span = trace.get_current_span()
+    span.set_attribute("input.value", user_text)
 
     prompt = CLASSIFY_FEEDBACK_PROMPT.format(user_text=user_text)
 
@@ -49,8 +54,14 @@ async def classify_feedback(request: TextClassificationRequest):
             raise HTTPException(status_code=500, detail="LLM output does not contain valid JSON.")
 
         response_data = FeedbackClassificationResponse(**classification_result)
+
+        # エンドポイントの最終的な出力を記録
+        span.set_attribute("output.value", response_data.model_dump_json())
+
         return response_data
 
     except Exception as e:
         print(f"Error during LLM classification: {e}")
+        span.set_attribute("error", True)
+        span.set_attribute("error.message", str(e))
         raise HTTPException(status_code=500, detail=f"LLM分類中にエラーが発生しました: {e}")

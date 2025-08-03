@@ -12,7 +12,7 @@ For detailed instructions on how to set up and run the project, please refer to 
 
 ## Observability (OpenTelemetry & Phoenix)
 
-This project integrates OpenTelemetry for distributed tracing and metrics, with data visualized using Arize AI Phoenix. The LLM Service is instrumented to provide insights into LLM calls.
+This project integrates OpenTelemetry for distributed tracing, metrics, and logs, with data visualized using Arize AI Phoenix. The LLM Service is instrumented to provide detailed insights into LLM calls, including prompts and responses visible in the 'input' and 'output' columns of Phoenix.
 
 - **Phoenix UI**: [http://localhost:6006](http://localhost:6006)
 

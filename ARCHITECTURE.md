@@ -16,32 +16,29 @@
 - **役割:** フロントエンドからのリクエストを受け付け、データベース操作、およびLLM Serviceへのリクエストの中継を行います。ビジネスロジックを担います。
 - **技術スタック:** Node.js (Express.js), PostgreSQL (データベース), `node-fetch` (LLM Serviceとの通信)
 
-### 2.3. LLM Service (LLMサービス)
-- **役割:** LLMサーバーへのリクエストを処理し、FastAPIエンドポイントを提供します。LLMモデルのロードや推論は、独立した`llama-server`が担当します。
-- **技術スタック:** Python (FastAPI), `httpx` (LLMサーバーとの通信), Uvicorn (ASGIサーバー)
-- **内部構造:**
-    - `main.py`: FastAPIアプリケーションの初期化、ルーターの登録のみを行う。
-    - `routers/`: 各APIエンドポイントの定義と、対応するプロンプトやサービス層の呼び出しを行う。
-    - `prompts/`: 各APIエンドポイントで使用されるプロンプト文字列を個別のファイルで管理する。
-    - `services/`: LLMサーバーを呼び出す共通のロジックを管理する。
+### 2.3. LLM Service (Python/FastAPI)
+- **Technology:** Python, FastAPI
+- **Role:** Provides an API for LLM-related functionalities, such as chat and feedback classification. It acts as an intermediary between the `backend` and the actual LLM server.
+- **Communication:** Communicates with `llama-server` for LLM inference. Sends OpenTelemetry traces and logs to `otel-collector`.
 
-### 2.4. Llama Server (LLMサーバー)
-- **役割:** 大規模言語モデルをホスティングし、フィードバックの分類や対話応答の生成といった推論処理を実行します。`llama-cpp-python`の組み込みサーバー機能を利用します。
-- **技術スタック:** Python, `llama-cpp-python` (LLM推論ライブラリ), Uvicorn (ASGIサーバー)
+### 2.4. Llama Server (Python/llama.cpp)
+- **Technology:** Python, llama.cpp (for local LLM inference)
+- **Role:** Hosts and serves the large language model (LLM) for inference requests.
+- **Communication:** Exposes a REST API for the `llm-service`.
 
-### 2.5. OpenTelemetry Collector (OTel Collector)
-- **役割:** アプリケーションから送信されるトレース、メトリクス、ログなどのテレメトリデータを受信、処理、エクスポートします。様々なフォーマットに対応し、バックエンドシステムへの橋渡し役となります。
-- **技術スタック:** Go (OpenTelemetry Collector Contrib)
+### 2.5. Database (PostgreSQL)
+- **Technology:** PostgreSQL
+- **Role:** Stores application data, including scheduled jobs and feedback.
+- **Communication:** Accessed by the `backend` service.
 
-### 2.6. Phoenix (可視化ツール)
-- **役割:** OpenTelemetry Collectorからエクスポートされたトレースデータを可視化し、LLMの動作やアプリケーション全体のパフォーマンスを分析するためのUIを提供します。
-- **技術スタック:** Python (Arize AI Phoenix)
+### 2.6. Observability (OpenTelemetry Collector, Phoenix)
+- **Technology:** OpenTelemetry Collector, Phoenix
+- **Role:** Collects and processes telemetry data (traces, metrics, logs) from various services. Phoenix provides a UI for visualizing and analyzing LLM-specific traces and logs.
+- **Communication:**
+    - `llm-service` (and potentially other services in the future) sends OTLP (OpenTelemetry Protocol) data to `otel-collector`.
+    - `otel-collector` processes and exports data to `phoenix`.
 
-### 2.7. Database (データベース)
-- **役割:** スケジュール情報、フィードバックデータなどのアプリケーションデータを永続化します。
-- **技術スタック:** PostgreSQL
-
-## 3. コンポーネント間の連携
+## 3. Data Flow Example (Job Scheduling)
 
 - **Frontend ↔ Backend:** RESTful APIを通じてHTTP/HTTPS通信を行います。
 - **Backend ↔ Database:** BackendがORM (Sequelize) を介してデータベースにアクセスします。
