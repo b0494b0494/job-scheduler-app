@@ -59,7 +59,7 @@ services:
     environment:
       MODEL_PATH: /app/models/mistral-7b-instruct-v0.2.Q2_K.gguf # 使用するモデルのパス
       N_GPU_LAYERS: -1 # GPUレイヤー数 (必要に応じて調整)
-      N_CTX: 2048 # コンテキスト長 (必要に応じて調整)
+      N_CTX: 4096 # コンテキスト長 (必要に応じて調整)
     networks:
       - app_network
 
