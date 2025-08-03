@@ -14,7 +14,7 @@
 
 ### 2.2. Backend (バックエンド)
 - **役割:** フロントエンドからのリクエストを受け付け、データベース操作、およびLLM Serviceへのリクエストの中継を行います。ビジネスロジックを担います。
-- **技術スタック:** Node.js (Express.js), PostgreSQL (データベース), `node-fetch` (LLM Serviceとの通信)
+- **技術スタック:** Node.js (tRPC/Express.js), PostgreSQL (データベース)
 
 ### 2.3. LLM Service (Python/FastAPI)
 - **Technology:** Python, FastAPI
@@ -42,7 +42,7 @@
 
 - **Frontend ↔ Backend:** RESTful APIを通じてHTTP/HTTPS通信を行います。
 - **Backend ↔ Database:** BackendがORM (Sequelize) を介してデータベースにアクセスします。
-- **Backend ↔ LLM Service:** BackendがHTTPリクエスト (`node-fetch`) を介してLLM ServiceのAPIエンドポイントを呼び出します。
+- **Backend ↔ LLM Service:** BackendがHTTPリクエストを介してLLM ServiceのAPIエンドポイントを呼び出します.
 - **LLM Service ↔ Llama Server:** LLM ServiceがHTTPリクエスト (`httpx`) を介してLlama ServerのAPIエンドポイントを呼び出し、LLM推論を実行します。
 - **LLM Service ↔ OpenTelemetry Collector:** LLM ServiceはOpenTelemetry SDKで計装されており、トレースデータをOTLP (OpenTelemetry Protocol) 形式でOpenTelemetry Collectorに送信します。
 - **OpenTelemetry Collector ↔ Phoenix:** OpenTelemetry Collectorは受信したトレースデータを処理し、Phoenixが理解できる形式でPhoenixのOTLPエンドポイントにエクスポートします。

@@ -4,7 +4,7 @@ This is a web application for scheduling jobs, with features for collecting and 
 
 ## Architecture
 
-The application is composed of several services orchestrated using Docker Compose. For a detailed architecture overview, please refer to `ARCHITECTURE.md`.
+The application is composed of several services orchestrated using Docker Compose. The backend now uses tRPC. For a detailed architecture overview, please refer to `ARCHITECTURE.md`.
 
 ## Getting Started
 
